@@ -33,6 +33,9 @@ bool playerPressed;
 
 void initGame();
 void game(int verse, int speed);
+void onPlayer1Press();
+void onPlayer2Press();
+void postGame(int shots);
 
 void setup() {
   Serial.begin(9600);
@@ -51,9 +54,6 @@ void setup() {
 }
 
 void loop() {
-  /*
-    Qui il LED pulsa da 0 a 255.
-  */
   if (newGame) {
     Serial.println(WELCOME_MSG);
     newGame = false;
@@ -64,13 +64,12 @@ void loop() {
     fadeAmount = -fadeAmount; 
   }     
   delay(15);
-  if (digitalRead(PIN_T3)) //TODO
+  if (digitalRead(PIN_T3))
     initGame();
 }
 
 void initGame() {
   int speed = map(analogRead(PIN_POT), 0, 1023, MIN_SPEED, MAX_SPEED);
-  /*int speed = 1;*/
   period = 1000 / speed;
   RT = period;
   gameStatus = true;
@@ -91,13 +90,13 @@ void game(int verse, int speed) {
     noInterrupts();
     playerPressed = false;
     interrupts();
+
     digitalWrite(leds[current], LOW);
     current = current + verse;
     time = millis();
     digitalWrite(leds[current], HIGH);
-    /*Serial.println("Inizio delay");*/
     delay(period);
-    /*Serial.println("Fine delay");*/
+
     if (current == 0 || current == 2) {
       shots++;
       verse = -verse;
@@ -110,29 +109,18 @@ void game(int verse, int speed) {
       interrupts();
     }
   }
-  detachInterrupt(digitalPinToInterrupt(PIN_T1));
-  detachInterrupt(digitalPinToInterrupt(PIN_T2));
-  String gameOverMsg = "Game Over - The Winner is the Player ";
-  gameOverMsg += winner;
-  gameOverMsg += " after ";
-  gameOverMsg += shots;
-  gameOverMsg += " shots.";
-  Serial.println(gameOverMsg);
-  digitalWrite(leds[current], LOW);
+  postGame(shots);
 }
 
 void onPlayer1Press() {
   static unsigned long prev = 0;
   unsigned long now = millis();
   if (now - prev > DEBOUNCING_TIME) {
-    Serial.println("onPlayer1Press");
-    if (current != 0  || timeExpired(time, RT)) {
+    if (current != 0  || (now - time > RT)) {
       gameStatus = false;
-      /*Serial.println("onPlayer1Press - gameStatus -> false");*/
       winner = PLAYER2;
     } else {
       playerPressed = true;
-      /*Serial.println("Player1 ha premuto");*/
     }
     prev = now;
   }
@@ -142,19 +130,33 @@ void onPlayer2Press() {
   static unsigned long prev = 0;
   unsigned long now = millis();
   if (now - prev > DEBOUNCING_TIME) {
-    Serial.println("onPlayer2Press");
-    if (current != 2  || timeExpired(time, RT)) {
-      /*Serial.println("onPlayer2Press - gameStatus -> false");*/
+    if (current != 2  || (now - time > RT)) {
       gameStatus = false;
       winner = PLAYER1;
     } else {
       playerPressed = true;
-      /*Serial.println("Player2 ha premuto");*/
     }
     prev = now;
   }
 }
 
-bool timeExpired(unsigned long time, unsigned long timeLimit) {
-  return (millis() - time) > timeLimit;
+void postGame(int shots) {
+  digitalWrite(leds[current], LOW);
+  detachInterrupt(digitalPinToInterrupt(PIN_T1));
+  detachInterrupt(digitalPinToInterrupt(PIN_T2));
+  String gameOverMsg = "Game Over - The Winner is the Player ";
+  gameOverMsg += winner;
+  gameOverMsg += " after ";
+  gameOverMsg += shots;
+  gameOverMsg += " shots.";
+  Serial.println(gameOverMsg);
+  /*
+   * Blinking part
+  */
+  for (int i = 0; i < 10; i++) {
+    digitalWrite(winner == PLAYER1 ? leds[0] : leds[2],
+      i % 2 == 0 ? HIGH : LOW);
+    delay(200);
+  }
+  newGame = true;
 }
