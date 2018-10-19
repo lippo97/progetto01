@@ -27,7 +27,7 @@ bool gameStatus;
 int winner;
 
 unsigned long time;
-int period;
+unsigned int period;
 int RT;
 bool playerPressed;
 
@@ -69,10 +69,11 @@ void loop() {
 }
 
 void initGame() {
-  int speed = map(analogRead(PIN_POT), 0, 1023, MIN_SPEED, MAX_SPEED);
-  period = 1000 / speed;
+  //int speed = map(analogRead(PIN_POT), 0, 1023, MIN_SPEED, MAX_SPEED);
+  int speed = 1;
+  period = 5000 / speed;
   RT = period;
-  gameStatus = true;
+  /*gameStatus = true;*/
   current = 1;
   analogWrite(LED_FLASH, 0);
   Serial.println("GO");
@@ -86,6 +87,7 @@ void initGame() {
 
 void game(int verse, int speed) {
   int shots = -1;
+  gameStatus = true;
   while(gameStatus) {
     noInterrupts();
     playerPressed = false;
@@ -93,23 +95,33 @@ void game(int verse, int speed) {
 
     digitalWrite(leds[current], LOW);
     current = current + verse;
-    time = millis();
     digitalWrite(leds[current], HIGH);
-    delay(period);
+    time = millis();
+
+    /*delay(period);*/
+
 
     if (current == 0 || current == 2) {
+      while((millis() - time < RT) && !playerPressed);
       shots++;
       verse = -verse;
       noInterrupts();
       RT = RT * 7 / 8;
+      Serial.println(RT);
       if (!playerPressed) {
         winner = current == 0 ? PLAYER2 : PLAYER1;
         gameStatus = false;
       }
       interrupts();
+    } else {
+      while((millis() - time < period) && !playerPressed);
     }
   }
   postGame(shots);
+}
+
+void waitTimeOrPress(unsigned int time) {
+
 }
 
 void onPlayer1Press() {
@@ -120,8 +132,8 @@ void onPlayer1Press() {
       gameStatus = false;
       winner = PLAYER2;
     } else {
-      playerPressed = true;
     }
+    playerPressed = true;
     prev = now;
   }
 }
@@ -134,8 +146,8 @@ void onPlayer2Press() {
       gameStatus = false;
       winner = PLAYER1;
     } else {
-      playerPressed = true;
     }
+    playerPressed = true;
     prev = now;
   }
 }
@@ -150,13 +162,14 @@ void postGame(int shots) {
   gameOverMsg += shots;
   gameOverMsg += " shots.";
   Serial.println(gameOverMsg);
+  Serial.println(RT);
   /*
    * Blinking part
   */
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 8; i++) {
     digitalWrite(winner == PLAYER1 ? leds[0] : leds[2],
       i % 2 == 0 ? HIGH : LOW);
-    delay(200);
+    delay(250);
   }
   newGame = true;
 }
