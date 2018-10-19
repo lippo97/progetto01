@@ -13,7 +13,7 @@
 #define MAX_SPEED 3
 
 #define WELCOME_MSG "Welcome to Led Pong. Press Key T3 to Start"
-#define DEBOUNCING_TIME 300
+#define DEBOUNCING_TIME 200
 #define PLAYER1 1
 #define PLAYER2 2
 
@@ -23,7 +23,7 @@ int leds[3] = { LED_L1, LED_L2, LED_L3 };
 
 bool newGame;
 int current;
-bool gameStatus;
+bool gameStatus = false;
 int winner;
 
 unsigned long time;
@@ -69,11 +69,9 @@ void loop() {
 }
 
 void initGame() {
-  //int speed = map(analogRead(PIN_POT), 0, 1023, MIN_SPEED, MAX_SPEED);
-  int speed = 1;
-  period = 5000 / speed;
+  int speed = map(analogRead(PIN_POT), 0, 1023, MIN_SPEED, MAX_SPEED);
+  period = 1000 / speed;
   RT = period;
-  /*gameStatus = true;*/
   current = 1;
   analogWrite(LED_FLASH, 0);
   Serial.println("GO");
@@ -91,15 +89,12 @@ void game(int verse, int speed) {
   while(gameStatus) {
     noInterrupts();
     playerPressed = false;
-    interrupts();
-
     digitalWrite(leds[current], LOW);
     current = current + verse;
     digitalWrite(leds[current], HIGH);
+    interrupts();
+    
     time = millis();
-
-    /*delay(period);*/
-
 
     if (current == 0 || current == 2) {
       while((millis() - time < RT) && !playerPressed);
@@ -107,7 +102,6 @@ void game(int verse, int speed) {
       verse = -verse;
       noInterrupts();
       RT = RT * 7 / 8;
-      Serial.println(RT);
       if (!playerPressed) {
         winner = current == 0 ? PLAYER2 : PLAYER1;
         gameStatus = false;
@@ -120,18 +114,14 @@ void game(int verse, int speed) {
   postGame(shots);
 }
 
-void waitTimeOrPress(unsigned int time) {
-
-}
-
 void onPlayer1Press() {
   static unsigned long prev = 0;
   unsigned long now = millis();
-  if (now - prev > DEBOUNCING_TIME) {
+
+  if (gameStatus && (now - prev > DEBOUNCING_TIME)) {
     if (current != 0  || (now - time > RT)) {
       gameStatus = false;
       winner = PLAYER2;
-    } else {
     }
     playerPressed = true;
     prev = now;
@@ -141,11 +131,11 @@ void onPlayer1Press() {
 void onPlayer2Press() {
   static unsigned long prev = 0;
   unsigned long now = millis();
-  if (now - prev > DEBOUNCING_TIME) {
+  
+  if (gameStatus && (now - prev > DEBOUNCING_TIME)) {
     if (current != 2  || (now - time > RT)) {
       gameStatus = false;
       winner = PLAYER1;
-    } else {
     }
     playerPressed = true;
     prev = now;
@@ -162,7 +152,6 @@ void postGame(int shots) {
   gameOverMsg += shots;
   gameOverMsg += " shots.";
   Serial.println(gameOverMsg);
-  Serial.println(RT);
   /*
    * Blinking part
   */
